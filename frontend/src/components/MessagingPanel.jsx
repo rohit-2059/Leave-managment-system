@@ -7,6 +7,7 @@ import {
   faUser,
   faUserTie,
   faComments,
+  faShieldHalved,
 } from '@fortawesome/free-solid-svg-icons';
 import {
   getContacts,
@@ -234,7 +235,7 @@ const MessagingPanel = ({ isOpen, onClose }) => {
                   ) : (
                     <div className="w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center">
                       <FontAwesomeIcon
-                        icon={selectedUser?.role === 'manager' ? faUserTie : faUser}
+                        icon={selectedUser?.role === 'manager' ? faUserTie : selectedUser?.role === 'admin' ? faShieldHalved : faUser}
                         className="text-xs"
                       />
                     </div>
@@ -292,7 +293,7 @@ const MessagingPanel = ({ isOpen, onClose }) => {
                     ) : (
                       <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center">
                         <FontAwesomeIcon
-                          icon={contact.role === 'manager' ? faUserTie : faUser}
+                          icon={contact.role === 'manager' ? faUserTie : contact.role === 'admin' ? faShieldHalved : faUser}
                           className="text-sm text-gray-500"
                         />
                       </div>

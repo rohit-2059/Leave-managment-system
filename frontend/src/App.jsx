@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Toaster } from 'sonner';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
+import { ThemeProvider } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -40,6 +41,7 @@ const RootRedirect = () => {
 
 function App() {
   return (
+    <ThemeProvider>
     <Router>
       <AuthProvider>
         <SocketProvider>
@@ -93,6 +95,7 @@ function App() {
         </SocketProvider>
       </AuthProvider>
     </Router>
+    </ThemeProvider>
   );
 }
 

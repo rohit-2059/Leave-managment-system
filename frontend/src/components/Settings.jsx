@@ -15,6 +15,7 @@ const Settings = () => {
 
   // Profile state
   const [name, setName] = useState(user?.name || '');
+  const [designation, setDesignation] = useState(user?.designation || '');
   const [avatarPreview, setAvatarPreview] = useState(user?.avatar || '');
   const [avatarFile, setAvatarFile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
@@ -65,7 +66,7 @@ const Settings = () => {
 
     setProfileLoading(true);
     try {
-      const data = { name: name.trim() };
+      const data = { name: name.trim(), designation: designation.trim() };
 
       // If avatar changed
       if (avatarFile) {
@@ -195,6 +196,20 @@ const Settings = () => {
               maxLength={50}
             />
             <p className="text-xs text-gray-400 mt-1">{name.length}/50 characters</p>
+          </div>
+
+          {/* Designation / Role */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Designation</label>
+            <input
+              type="text"
+              value={designation}
+              onChange={(e) => setDesignation(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400"
+              placeholder="e.g. Software Engineer, UI Designer"
+              maxLength={100}
+            />
+            <p className="text-xs text-gray-400 mt-1">Your job title — visible to managers and admins</p>
           </div>
 
           {/* Email (read-only) */}

@@ -4,7 +4,7 @@ import Team from '../models/Team.js';
 
 // @desc    Send a message
 // @route   POST /api/messages
-// @access  Employee, Manager
+// @access  Employee, Manager, Admin
 export const sendMessage = async (req, res) => {
   try {
     const { receiverId, content } = req.body;
@@ -34,22 +34,31 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    // Manager can only message employees in their teams
+    // Manager can message employees in their teams OR admins
     if (senderRole === 'manager') {
-      if (receiver.role !== 'employee') {
+      if (receiver.role === 'employee') {
+        const teams = await Team.find({ managerId: senderId });
+        const allMembers = teams.flatMap((t) => t.members.map((m) => m.toString()));
+        if (!allMembers.includes(receiverId)) {
+          return res.status(403).json({
+            success: false,
+            message: 'You can only message employees in your teams',
+          });
+        }
+      } else if (receiver.role !== 'admin') {
         return res.status(403).json({
           success: false,
-          message: 'Managers can only message employees in their teams',
+          message: 'Managers can only message employees in their teams or admins',
         });
       }
-      const teams = await Team.find({ managerId: senderId });
-      const allMembers = teams.flatMap((t) => t.members.map((m) => m.toString()));
-      if (!allMembers.includes(receiverId)) {
-        return res.status(403).json({
-          success: false,
-          message: 'You can only message employees in your teams',
-        });
-      }
+    }
+
+    // Admin can only message managers
+    if (senderRole === 'admin' && receiver.role !== 'manager') {
+      return res.status(403).json({
+        success: false,
+        message: 'Admins can only message managers',
+      });
     }
 
     const message = await Message.create({
@@ -77,7 +86,7 @@ export const sendMessage = async (req, res) => {
 
 // @desc    Get conversation with a specific user
 // @route   GET /api/messages/conversation/:userId
-// @access  Employee, Manager
+// @access  Employee, Manager, Admin
 export const getConversation = async (req, res) => {
   try {
     const currentUserId = req.user.userId;
@@ -114,7 +123,7 @@ export const getConversation = async (req, res) => {
 
 // @desc    Get list of conversations (contacts with last message)
 // @route   GET /api/messages/conversations
-// @access  Employee, Manager
+// @access  Employee, Manager, Admin
 export const getConversations = async (req, res) => {
   try {
     const currentUserId = req.user.userId;
@@ -165,9 +174,9 @@ export const getConversations = async (req, res) => {
   }
 };
 
-// @desc    Get contactable users (managers for employee, team employees for manager)
+// @desc    Get contactable users (managers for employee, team employees + admins for manager, managers for admin)
 // @route   GET /api/messages/contacts
-// @access  Employee, Manager
+// @access  Employee, Manager, Admin
 export const getContacts = async (req, res) => {
   try {
     const currentUserId = req.user.userId;
@@ -179,7 +188,7 @@ export const getContacts = async (req, res) => {
       // Employee can message any manager
       contacts = await User.find({ role: 'manager' }).select('name email avatar role');
     } else if (currentRole === 'manager') {
-      // Manager can message employees in their teams only
+      // Manager can message employees in their teams + all admins
       const teams = await Team.find({ managerId: currentUserId }).populate(
         'members',
         'name email avatar role'
@@ -190,7 +199,12 @@ export const getContacts = async (req, res) => {
           memberMap.set(member._id.toString(), member);
         }
       }
-      contacts = Array.from(memberMap.values());
+      const teamEmployees = Array.from(memberMap.values());
+      const admins = await User.find({ role: 'admin' }).select('name email avatar role');
+      contacts = [...teamEmployees, ...admins];
+    } else if (currentRole === 'admin') {
+      // Admin can message any manager
+      contacts = await User.find({ role: 'manager' }).select('name email avatar role');
     }
 
     res.status(200).json({
@@ -208,7 +222,7 @@ export const getContacts = async (req, res) => {
 
 // @desc    Get unread message count
 // @route   GET /api/messages/unread-count
-// @access  Employee, Manager
+// @access  Employee, Manager, Admin
 export const getUnreadCount = async (req, res) => {
   try {
     const currentUserId = req.user.userId;

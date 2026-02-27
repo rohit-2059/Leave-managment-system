@@ -53,6 +53,30 @@ const leaveSchema = new mongoose.Schema(
       type: Number,
       min: [0.5, 'Minimum leave is half day'],
     },
+    escalatedToAdmin: {
+      type: Boolean,
+      default: false,
+    },
+    adminOverride: {
+      type: String,
+      enum: ['none', 'approved', 'upheld'],
+      default: 'none',
+    },
+    adminNote: {
+      type: String,
+      trim: true,
+      maxlength: [300, 'Admin note cannot exceed 300 characters'],
+      default: '',
+    },
+    adminReviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    adminReviewedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

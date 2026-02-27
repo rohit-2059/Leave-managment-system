@@ -149,6 +149,9 @@ const ManageTeam = ({ teamId, onBack }) => {
                     <div>
                       <p className="font-medium text-gray-900">{member.name}</p>
                       <p className="text-xs text-gray-600">{member.email}</p>
+                      {member.designation && (
+                        <p className="text-[10px] text-gray-400 mt-0.5">{member.designation}</p>
+                      )}
                     </div>
                   </div>
                   <button

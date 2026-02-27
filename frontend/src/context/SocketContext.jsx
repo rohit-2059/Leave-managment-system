@@ -28,8 +28,8 @@ export const SocketProvider = ({ children }) => {
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    // Only connect for employee/manager roles
-    if (!user || !token || (user.role !== 'employee' && user.role !== 'manager')) {
+    // Connect for employee/manager/admin roles
+    if (!user || !token || !['employee', 'manager', 'admin'].includes(user.role)) {
       return;
     }
 

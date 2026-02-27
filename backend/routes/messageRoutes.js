@@ -10,9 +10,9 @@ import { protect, authorize } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// All routes require authentication and employee/manager role
+// All routes require authentication and employee/manager/admin role
 router.use(protect);
-router.use(authorize('employee', 'manager'));
+router.use(authorize('employee', 'manager', 'admin'));
 
 router.post('/', sendMessage);
 router.get('/conversations', getConversations);

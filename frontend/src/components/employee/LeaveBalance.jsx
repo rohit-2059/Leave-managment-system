@@ -20,6 +20,89 @@ const MONTHS = [
   'July','August','September','October','November','December',
 ];
 
+// ── Indian Gazetted / National Holidays ─────────────────────────
+// Fixed holidays (same date every year)
+const FIXED_HOLIDAYS = [
+  { month: 1, day: 1, name: 'New Year\'s Day' },
+  { month: 1, day: 14, name: 'Makar Sankranti' },
+  { month: 1, day: 26, name: 'Republic Day' },
+  { month: 4, day: 14, name: 'Dr. Ambedkar Jayanti' },
+  { month: 5, day: 1, name: 'May Day' },
+  { month: 8, day: 15, name: 'Independence Day' },
+  { month: 10, day: 2, name: 'Gandhi Jayanti' },
+  { month: 11, day: 14, name: 'Children\'s Day' },
+  { month: 12, day: 25, name: 'Christmas' },
+];
+
+// Variable holidays (lunar-calendar based, year-specific)
+const VARIABLE_HOLIDAYS = {
+  2025: [
+    { month: 2, day: 26, name: 'Maha Shivaratri' },
+    { month: 3, day: 14, name: 'Holi' },
+    { month: 3, day: 31, name: 'Eid-ul-Fitr' },
+    { month: 4, day: 6, name: 'Ram Navami' },
+    { month: 4, day: 10, name: 'Mahavir Jayanti' },
+    { month: 4, day: 18, name: 'Good Friday' },
+    { month: 5, day: 12, name: 'Buddha Purnima' },
+    { month: 6, day: 7, name: 'Eid-ul-Adha' },
+    { month: 7, day: 6, name: 'Muharram' },
+    { month: 8, day: 16, name: 'Janmashtami' },
+    { month: 9, day: 5, name: 'Milad-un-Nabi' },
+    { month: 10, day: 2, name: 'Dussehra' },
+    { month: 10, day: 20, name: 'Diwali' },
+    { month: 10, day: 21, name: 'Govardhan Puja' },
+    { month: 11, day: 5, name: 'Guru Nanak Jayanti' },
+  ],
+  2026: [
+    { month: 2, day: 15, name: 'Maha Shivaratri' },
+    { month: 3, day: 4, name: 'Holi' },
+    { month: 3, day: 20, name: 'Eid-ul-Fitr' },
+    { month: 3, day: 26, name: 'Ram Navami' },
+    { month: 3, day: 31, name: 'Mahavir Jayanti' },
+    { month: 4, day: 3, name: 'Good Friday' },
+    { month: 5, day: 1, name: 'Buddha Purnima' },
+    { month: 5, day: 27, name: 'Eid-ul-Adha' },
+    { month: 6, day: 26, name: 'Muharram' },
+    { month: 8, day: 14, name: 'Janmashtami' },
+    { month: 8, day: 25, name: 'Milad-un-Nabi' },
+    { month: 9, day: 21, name: 'Dussehra' },
+    { month: 10, day: 9, name: 'Diwali' },
+    { month: 10, day: 10, name: 'Govardhan Puja' },
+    { month: 10, day: 25, name: 'Guru Nanak Jayanti' },
+  ],
+  2027: [
+    { month: 2, day: 4, name: 'Maha Shivaratri' },
+    { month: 3, day: 10, name: 'Eid-ul-Fitr' },
+    { month: 3, day: 22, name: 'Holi' },
+    { month: 3, day: 22, name: 'Mahavir Jayanti' },
+    { month: 4, day: 2, name: 'Good Friday' },
+    { month: 4, day: 15, name: 'Ram Navami' },
+    { month: 5, day: 17, name: 'Eid-ul-Adha' },
+    { month: 5, day: 20, name: 'Buddha Purnima' },
+    { month: 6, day: 15, name: 'Muharram' },
+    { month: 8, day: 15, name: 'Milad-un-Nabi' },
+    { month: 9, day: 3, name: 'Janmashtami' },
+    { month: 10, day: 11, name: 'Dussehra' },
+    { month: 10, day: 29, name: 'Diwali' },
+    { month: 10, day: 30, name: 'Govardhan Puja' },
+    { month: 11, day: 14, name: 'Guru Nanak Jayanti' },
+  ],
+};
+
+// Build lookup: "YYYY-M-D" → holiday name
+const getHolidayMap = (year) => {
+  const map = {};
+  FIXED_HOLIDAYS.forEach((h) => {
+    map[`${year}-${h.month - 1}-${h.day}`] = h.name;
+  });
+  (VARIABLE_HOLIDAYS[year] || []).forEach((h) => {
+    const key = `${year}-${h.month - 1}-${h.day}`;
+    // If same date already has a fixed holiday, combine names
+    map[key] = map[key] ? `${map[key]} / ${h.name}` : h.name;
+  });
+  return map;
+};
+
 const LeaveCalendar = ({ leaves }) => {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
@@ -35,6 +118,9 @@ const LeaveCalendar = ({ leaves }) => {
     else setViewMonth(viewMonth + 1);
   };
   const goToday = () => { setViewYear(today.getFullYear()); setViewMonth(today.getMonth()); };
+
+  // Holiday map for current view year
+  const holidays = useMemo(() => getHolidayMap(viewYear), [viewYear]);
 
   // Build map of date → { status, leaveType, startDate, endDate }
   const leaveDays = useMemo(() => {
@@ -58,17 +144,20 @@ const LeaveCalendar = ({ leaves }) => {
     return map;
   }, [leaves]);
 
-  // Count leaves this month
-  const monthLeaveCount = useMemo(() => {
+  // Count leaves & holidays this month
+  const monthStats = useMemo(() => {
     let approved = 0;
     let pending = 0;
+    let holidayCount = 0;
     for (let d = 1; d <= new Date(viewYear, viewMonth + 1, 0).getDate(); d++) {
-      const info = leaveDays[`${viewYear}-${viewMonth}-${d}`];
+      const key = `${viewYear}-${viewMonth}-${d}`;
+      const info = leaveDays[key];
       if (info?.status === 'approved') approved++;
       else if (info?.status === 'pending') pending++;
+      if (holidays[key]) holidayCount++;
     }
-    return { approved, pending };
-  }, [leaveDays, viewYear, viewMonth]);
+    return { approved, pending, holidayCount };
+  }, [leaveDays, holidays, viewYear, viewMonth]);
 
   const firstDay = new Date(viewYear, viewMonth, 1).getDay();
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
@@ -94,6 +183,11 @@ const LeaveCalendar = ({ leaves }) => {
 
   const isSun = (i) => i % 7 === 0;
 
+  const getHoliday = (d) => {
+    if (!d) return null;
+    return holidays[`${viewYear}-${viewMonth}-${d}`] || null;
+  };
+
   const leaveTypeLabel = {
     sick: 'Sick', casual: 'Casual', earned: 'Earned', unpaid: 'Unpaid', other: 'Other',
   };
@@ -110,10 +204,12 @@ const LeaveCalendar = ({ leaves }) => {
             {MONTHS[viewMonth]} {viewYear}
           </p>
           <p className="text-[11px] text-gray-400 mt-0.5">
-            {monthLeaveCount.approved > 0 && `${monthLeaveCount.approved} day${monthLeaveCount.approved > 1 ? 's' : ''} on leave`}
-            {monthLeaveCount.approved > 0 && monthLeaveCount.pending > 0 && ' · '}
-            {monthLeaveCount.pending > 0 && `${monthLeaveCount.pending} pending`}
-            {monthLeaveCount.approved === 0 && monthLeaveCount.pending === 0 && 'No leaves this month'}
+            {monthStats.approved > 0 && `${monthStats.approved} day${monthStats.approved > 1 ? 's' : ''} on leave`}
+            {monthStats.approved > 0 && (monthStats.pending > 0 || monthStats.holidayCount > 0) && ' · '}
+            {monthStats.pending > 0 && `${monthStats.pending} pending`}
+            {monthStats.pending > 0 && monthStats.holidayCount > 0 && ' · '}
+            {monthStats.holidayCount > 0 && `${monthStats.holidayCount} holiday${monthStats.holidayCount > 1 ? 's' : ''}`}
+            {monthStats.approved === 0 && monthStats.pending === 0 && monthStats.holidayCount === 0 && 'No leaves this month'}
           </p>
         </div>
         <div className="flex items-center gap-1.5">
@@ -148,6 +244,7 @@ const LeaveCalendar = ({ leaves }) => {
       <div className="grid grid-cols-7 gap-y-0.5">
         {cells.map((day, i) => {
           const info = getInfo(day);
+          const holiday = getHoliday(day);
           const todayCell = isToday(day);
           const sunday = isSun(i);
           const hovered = hoveredDay === day && day !== null;
@@ -156,14 +253,15 @@ const LeaveCalendar = ({ leaves }) => {
             <div
               key={i}
               className="relative flex items-center justify-center py-0.5"
-              onMouseEnter={() => day && info && setHoveredDay(day)}
+              onMouseEnter={() => day && (info || holiday) && setHoveredDay(day)}
               onMouseLeave={() => setHoveredDay(null)}
             >
               <div
                 className={`
-                  w-9 h-9 flex flex-col items-center justify-center rounded-full text-[13px] font-medium transition-all
+                  w-9 h-9 flex flex-col items-center justify-center rounded-full text-[13px] font-medium transition-all relative
                   ${!day ? '' : ''}
-                  ${day && !info && !todayCell ? (sunday ? 'text-gray-400' : 'text-gray-700') : ''}
+                  ${day && !info && !todayCell && !holiday ? (sunday ? 'text-gray-400' : 'text-gray-700') : ''}
+                  ${day && !info && holiday ? 'text-orange-600 font-semibold' : ''}
                   ${day && info?.status === 'approved' ? 'bg-gray-900 text-white' : ''}
                   ${day && info?.status === 'pending' ? 'bg-gray-200 text-gray-700' : ''}
                   ${todayCell && !info ? 'ring-2 ring-gray-900 text-gray-900 font-bold' : ''}
@@ -176,16 +274,34 @@ const LeaveCalendar = ({ leaves }) => {
                 {day && info?.status === 'pending' && (
                   <span className="absolute bottom-0.5 w-1 h-1 rounded-full bg-gray-500"></span>
                 )}
+                {/* Small orange dot for holidays (no leave overlap) */}
+                {day && holiday && !info && (
+                  <span className="absolute bottom-0.5 w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+                )}
+                {/* Orange ring for holidays with leave overlap */}
+                {day && holiday && info && (
+                  <span className="absolute inset-0 rounded-full ring-2 ring-orange-400 ring-offset-1"></span>
+                )}
               </div>
 
               {/* Tooltip on hover */}
-              {hovered && info && (
-                <div className="absolute z-10 bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[11px] rounded-lg px-3 py-2 whitespace-nowrap shadow-lg pointer-events-none">
-                  <p className="font-semibold">{leaveTypeLabel[info.leaveType] || info.leaveType} Leave</p>
-                  <p className="text-gray-300 mt-0.5">
-                    {formatTip(info.startDate)} — {formatTip(info.endDate)}
-                  </p>
-                  <p className="text-gray-400 mt-0.5 capitalize">{info.status}</p>
+              {hovered && (info || holiday) && (
+                <div className="absolute z-10 bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[11px] rounded-lg px-3 py-2 whitespace-nowrap shadow-lg pointer-events-none min-w-max">
+                  {holiday && (
+                    <p className="font-semibold text-orange-300">
+                      🏳️ {holiday}
+                    </p>
+                  )}
+                  {info && (
+                    <>
+                      {holiday && <div className="border-t border-gray-700 my-1.5"></div>}
+                      <p className="font-semibold">{leaveTypeLabel[info.leaveType] || info.leaveType} Leave</p>
+                      <p className="text-gray-300 mt-0.5">
+                        {formatTip(info.startDate)} — {formatTip(info.endDate)}
+                      </p>
+                      <p className="text-gray-400 mt-0.5 capitalize">{info.status}</p>
+                    </>
+                  )}
                   <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-l-transparent border-r-transparent border-t-gray-900"></div>
                 </div>
               )}
@@ -195,7 +311,7 @@ const LeaveCalendar = ({ leaves }) => {
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-5 mt-4 pt-3 border-t border-gray-100">
+      <div className="flex items-center gap-4 mt-4 pt-3 border-t border-gray-100 flex-wrap">
         <div className="flex items-center gap-2">
           <span className="w-3.5 h-3.5 rounded-full bg-gray-900"></span>
           <span className="text-[11px] text-gray-500">Approved</span>
@@ -208,7 +324,37 @@ const LeaveCalendar = ({ leaves }) => {
           <span className="w-3.5 h-3.5 rounded-full border-2 border-gray-900"></span>
           <span className="text-[11px] text-gray-500">Today</span>
         </div>
+        <div className="flex items-center gap-2">
+          <span className="w-3.5 h-3.5 rounded-full bg-orange-500"></span>
+          <span className="text-[11px] text-gray-500">Holiday</span>
+        </div>
       </div>
+
+      {/* Upcoming holidays in this month */}
+      {(() => {
+        const upcomingHolidays = [];
+        const daysInMonthCount = new Date(viewYear, viewMonth + 1, 0).getDate();
+        for (let d = 1; d <= daysInMonthCount; d++) {
+          const h = holidays[`${viewYear}-${viewMonth}-${d}`];
+          if (h) upcomingHolidays.push({ day: d, name: h });
+        }
+        if (upcomingHolidays.length === 0) return null;
+        return (
+          <div className="mt-3 pt-3 border-t border-gray-100">
+            <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              Holidays in {MONTHS[viewMonth]}
+            </p>
+            <div className="space-y-1.5">
+              {upcomingHolidays.map((h) => (
+                <div key={h.day} className="flex items-center gap-2">
+                  <span className="text-[11px] font-mono text-orange-600 w-5 text-right">{h.day}</span>
+                  <span className="text-[11px] text-gray-600">{h.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

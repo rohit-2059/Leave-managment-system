@@ -46,6 +46,12 @@ const userSchema = new mongoose.Schema(
       enum: ['local', 'google'],
       default: 'local',
     },
+    designation: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Designation cannot exceed 100 characters'],
+      default: '',
+    },
     managerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

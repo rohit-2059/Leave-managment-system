@@ -17,6 +17,8 @@ import {
   faReceipt,
   faFileInvoiceDollar,
   faMoneyCheckDollar,
+  faCalendarPlus,
+  faCalendarCheck,
 } from '@fortawesome/free-solid-svg-icons';
 
 // Lazy load tab components — only loaded when their tab is active
@@ -29,6 +31,8 @@ const TeamComplaints = lazy(() => import('../../components/manager/TeamComplaint
 const TeamReimbursements = lazy(() => import('../../components/manager/TeamReimbursements'));
 const ManagerApplyReimbursement = lazy(() => import('../../components/manager/ManagerApplyReimbursement'));
 const ManagerMyReimbursements = lazy(() => import('../../components/manager/ManagerMyReimbursements'));
+const ManagerApplyLeave = lazy(() => import('../../components/manager/ManagerApplyLeave'));
+const ManagerMyLeaves = lazy(() => import('../../components/manager/ManagerMyLeaves'));
 const Settings = lazy(() => import('../../components/Settings'));
 
 const TabFallback = () => (
@@ -46,6 +50,7 @@ const ManagerDashboard = () => {
   const [collapsed, setCollapsed] = useState(true);
   const [messagingOpen, setMessagingOpen] = useState(false);
   const [reimbursementRefresh, setReimbursementRefresh] = useState(0);
+  const [leaveRefresh, setLeaveRefresh] = useState(0);
   // Prefetch overview data immediately
   const [prefetchedData, setPrefetchedData] = useState(null);
 
@@ -60,6 +65,8 @@ const ManagerDashboard = () => {
     { id: 'my-teams', label: 'My Teams', icon: faUsers },
     { id: 'create-team', label: 'Create Team', icon: faPlus },
     { id: 'leave-requests', label: 'Leave Requests', icon: faClipboardList },
+    { id: 'apply-leave', label: 'Apply Leave', icon: faCalendarPlus },
+    { id: 'my-leaves', label: 'My Leaves', icon: faCalendarCheck },
     { id: 'complaints', label: 'Complaints', icon: faExclamationTriangle },
     { id: 'team-reimbursements', label: 'Team Reimbursements', icon: faMoneyCheckDollar },
     { id: 'apply-reimbursement', label: 'Apply Reimbursement', icon: faFileInvoiceDollar },
@@ -86,6 +93,11 @@ const ManagerDashboard = () => {
   const handleReimbursementApplied = () => {
     setReimbursementRefresh((prev) => prev + 1);
     setActiveTab('my-reimbursements');
+  };
+
+  const handleLeaveApplied = () => {
+    setLeaveRefresh((prev) => prev + 1);
+    setActiveTab('my-leaves');
   };
 
   return (
@@ -163,6 +175,8 @@ const ManagerDashboard = () => {
               <ManageTeam teamId={selectedTeamId} onBack={handleBackToTeams} />
             )}
             {activeTab === 'leave-requests' && <TeamLeaveRequests />}
+            {activeTab === 'apply-leave' && <ManagerApplyLeave onLeaveApplied={handleLeaveApplied} />}
+            {activeTab === 'my-leaves' && <ManagerMyLeaves refreshTrigger={leaveRefresh} />}
             {activeTab === 'complaints' && <TeamComplaints />}
             {activeTab === 'team-reimbursements' && <TeamReimbursements />}
             {activeTab === 'apply-reimbursement' && <ManagerApplyReimbursement onApplied={handleReimbursementApplied} />}

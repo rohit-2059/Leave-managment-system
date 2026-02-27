@@ -98,6 +98,9 @@ const MyTeam = () => {
                     {employee.name}
                   </h3>
                   <p className="text-xs sm:text-sm text-gray-600 truncate">{employee.email}</p>
+                  {employee.designation && (
+                    <p className="text-[10px] sm:text-xs text-gray-500 truncate mt-0.5">{employee.designation}</p>
+                  )}
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <span className="text-[10px] sm:text-xs px-2 py-0.5 rounded border border-gray-300 bg-white text-gray-700">
                       Employee

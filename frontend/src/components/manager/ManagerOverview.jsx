@@ -128,8 +128,8 @@ const ManagerOverview = ({ onNavigate, prefetchedData }) => {
 
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="flex items-center justify-between mb-3">
-            <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center">
-              <FontAwesomeIcon icon={faCheck} className="text-sm text-gray-600" />
+            <div className="w-9 h-9 rounded-lg bg-gray-900 flex items-center justify-center">
+              <FontAwesomeIcon icon={faCheck} className="text-sm text-white" />
             </div>
           </div>
           <p className="text-2xl font-bold text-gray-900">{stats.approvedLeaves}</p>

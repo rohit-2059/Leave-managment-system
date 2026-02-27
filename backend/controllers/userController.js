@@ -505,7 +505,7 @@ export const removeEmployee = async (req, res) => {
 // @access  All authenticated users
 export const updateProfile = async (req, res) => {
   try {
-    const { name, avatar } = req.body;
+    const { name, avatar, designation } = req.body;
     const userId = req.user.userId;
 
     const user = await User.findById(userId);
@@ -530,6 +530,17 @@ export const updateProfile = async (req, res) => {
     // Update avatar if provided
     if (avatar !== undefined) {
       user.avatar = avatar;
+    }
+
+    // Update designation if provided
+    if (designation !== undefined) {
+      if (designation.length > 100) {
+        return res.status(400).json({
+          success: false,
+          message: 'Designation cannot exceed 100 characters',
+        });
+      }
+      user.designation = designation.trim();
     }
 
     await user.save();
