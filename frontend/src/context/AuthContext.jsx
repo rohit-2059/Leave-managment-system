@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { signInWithPopup, signOut } from 'firebase/auth';
+import { signInWithRedirect, getRedirectResult, signOut } from 'firebase/auth';
 import { auth, googleProvider } from '../config/firebase';
 import api from '../services/api';
 
@@ -19,35 +19,47 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // On mount, check for existing token in localStorage
+  // On mount, check for existing token in localStorage and handle Google redirect
   useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
-
-    if (storedToken && storedUser) {
+    const initAuth = async () => {
+      // First, check for Google redirect result
       try {
-        const parsedUser = JSON.parse(storedUser);
-        setToken(storedToken);
-        setUser(parsedUser);
-
-        // Verify token is still valid
-        api
-          .get('/auth/me')
-          .then((res) => {
-            if (res.data.success) {
-              setUser(res.data.user);
-              localStorage.setItem('user', JSON.stringify(res.data.user));
-            }
-          })
-          .catch(() => {
-            // Token invalid — clear everything
-            logout();
-          });
-      } catch {
-        logout();
+        await handleGoogleRedirect();
+      } catch (err) {
+        console.error('Google redirect error:', err);
       }
-    }
-    setLoading(false);
+
+      // Then check for existing token
+      const storedToken = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
+
+      if (storedToken && storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          setToken(storedToken);
+          setUser(parsedUser);
+
+          // Verify token is still valid
+          api
+            .get('/auth/me')
+            .then((res) => {
+              if (res.data.success) {
+                setUser(res.data.user);
+                localStorage.setItem('user', JSON.stringify(res.data.user));
+              }
+            })
+            .catch(() => {
+              // Token invalid — clear everything
+              logout();
+            });
+        } catch {
+          logout();
+        }
+      }
+      setLoading(false);
+    };
+
+    initAuth();
   }, []);
 
   // Save to localStorage whenever user/token changes
@@ -103,18 +115,52 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Google Sign-In
+  // Google Sign-In (using redirect method for production compatibility)
   const googleSignIn = async (role = null) => {
     setError(null);
     setLoading(true);
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const firebaseToken = await result.user.getIdToken();
+      // Store role and current path in sessionStorage for after redirect
+      if (role) {
+        sessionStorage.setItem('pendingGoogleRole', role);
+      }
+      sessionStorage.setItem('googleAuthRedirect', 'true');
+      // Use redirect instead of popup to avoid COOP issues
+      await signInWithRedirect(auth, googleProvider);
+    } catch (err) {
+      const message =
+        err.message ||
+        'Google Sign-In failed. Please try again.';
+      setError(message);
+      setLoading(false);
+      throw err;
+    }
+  };
 
-      const res = await api.post('/auth/google', { firebaseToken, role });
-      if (res.data.success) {
-        saveAuth(res.data.token, res.data.user);
-        return res.data;
+  // Handle Google redirect result
+  const handleGoogleRedirect = async () => {
+    try {
+      const result = await getRedirectResult(auth);
+      if (result && result.user) {
+        const firebaseToken = await result.user.getIdToken();
+        const role = sessionStorage.getItem('pendingGoogleRole');
+        const wasRedirect = sessionStorage.getItem('googleAuthRedirect');
+        
+        sessionStorage.removeItem('pendingGoogleRole');
+        sessionStorage.removeItem('googleAuthRedirect');
+
+        const res = await api.post('/auth/google', { firebaseToken, role });
+        if (res.data.success) {
+          saveAuth(res.data.token, res.data.user);
+          
+          // Auto-navigate after successful Google auth redirect
+          if (wasRedirect) {
+            const dashboardPath = getDashboardPath(res.data.user.role);
+            window.location.href = dashboardPath;
+          }
+          
+          return res.data;
+        }
       }
     } catch (err) {
       const message =
@@ -122,9 +168,16 @@ export const AuthProvider = ({ children }) => {
         err.message ||
         'Google Sign-In failed. Please try again.';
       setError(message);
-      throw err; // Throw the full error object, not just the message
-    } finally {
-      setLoading(false);
+      
+      // Handle new user case
+      if (err.response?.data?.isNewUser || message === 'NEW_USER') {
+        sessionStorage.removeItem('pendingGoogleRole');
+        sessionStorage.removeItem('googleAuthRedirect');
+        window.location.href = '/register';
+        return;
+      }
+      
+      throw err;
     }
   };
 
@@ -174,6 +227,7 @@ export const AuthProvider = ({ children }) => {
     register,
     login,
     googleSignIn,
+    handleGoogleRedirect,
     logout,
     clearError,
     updateUser,

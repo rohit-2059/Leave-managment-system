@@ -257,6 +257,21 @@ Or set up a one-off job.
 ### Issue 6: 404 on Route Refresh
 **Solution**: Already handled by `vercel.json` rewrites configuration ✅
 
+### Issue 7: Google Sign-In COOP Errors (Error 405 / Cross-Origin-Opener-Policy)
+**Symptoms**:
+- Error code 405 when trying to sign in with Google
+- Console shows: "Cross-Origin-Opener-Policy policy would block the window.closed call"
+- Google popup window doesn't work
+
+**Solutions**:
+- ✅ Already fixed: App uses redirect-based authentication instead of popup
+- ✅ Already configured: `vercel.json` includes proper COOP headers
+- Ensure Firebase Console has your Vercel domain in authorized domains:
+  1. Go to [Firebase Console](https://console.firebase.google.com)
+  2. Select your project → Authentication → Settings → Authorized domains
+  3. Add your Vercel domain (e.g., `your-app.vercel.app`)
+- If issues persist, redeploy on Vercel to apply the new headers
+
 ---
 
 ## 📊 Performance Optimization
