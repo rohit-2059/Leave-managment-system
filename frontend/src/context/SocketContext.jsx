@@ -33,8 +33,10 @@ export const SocketProvider = ({ children }) => {
       return;
     }
 
-    // Connect through same origin (Vite proxy handles forwarding to backend)
-    const newSocket = io({
+    // In production, connect to backend URL; in dev, use same origin (Vite proxy)
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || window.location.origin;
+    
+    const newSocket = io(socketUrl, {
       auth: { token },
       transports: ['polling', 'websocket'],
       reconnection: true,

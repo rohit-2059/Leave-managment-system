@@ -10,12 +10,21 @@ const initializeFirebase = () => {
   try {
     let serviceAccount = null;
 
-    // Option 1: JSON string via env variable (for Render / cloud hosting)
-    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    // Option 1: Base64 encoded JSON (for Render / cloud hosting - recommended)
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
+      const decoded = Buffer.from(
+        process.env.FIREBASE_SERVICE_ACCOUNT_BASE64,
+        'base64'
+      ).toString('utf8');
+      serviceAccount = JSON.parse(decoded);
+      console.log('Using Firebase credentials from FIREBASE_SERVICE_ACCOUNT_BASE64 env variable');
+    }
+    // Option 2: Direct JSON string via env variable
+    else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
       serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
       console.log('Using Firebase credentials from FIREBASE_SERVICE_ACCOUNT env variable');
     } else {
-      // Option 2: Local file path (for local development)
+      // Option 3: Local file path (for local development)
       const serviceAccountPath = path.resolve(
         process.env.FIREBASE_SERVICE_ACCOUNT_PATH || './config/serviceAccountKey.json'
       );
