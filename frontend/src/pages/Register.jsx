@@ -20,16 +20,16 @@ const Register = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { register, googleSignIn, isAuthenticated, loading, getDashboardPath, clearError } =
+  const { register, googleSignIn, isAuthenticated, loading, getDashboardPath, clearError, user } =
     useAuth();
   const navigate = useNavigate();
 
   // Redirect if already logged in (wait for loading to complete)
   useEffect(() => {
-    if (!loading && isAuthenticated) {
-      navigate(getDashboardPath(), { replace: true });
+    if (!loading && isAuthenticated && user) {
+      navigate(getDashboardPath(user.role), { replace: true });
     }
-  }, [isAuthenticated, loading, navigate, getDashboardPath]);
+  }, [isAuthenticated, loading, user]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -93,16 +93,9 @@ const Register = () => {
     }
   };
 
-  // Show loading screen while processing Google redirect
+  // Show loading screen only during initial auth check
   if (loading) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center p-4">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mb-4"></div>
-          <p className="text-gray-600">Creating your account...</p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (

@@ -77,7 +77,6 @@ export const AuthProvider = ({ children }) => {
   // Register with email/password
   const register = async (name, email, password, role) => {
     setError(null);
-    setLoading(true);
     try {
       const res = await api.post('/auth/register', {
         name,
@@ -94,15 +93,12 @@ export const AuthProvider = ({ children }) => {
         err.response?.data?.message || 'Registration failed. Please try again.';
       setError(message);
       throw new Error(message);
-    } finally {
-      setLoading(false);
     }
   };
 
   // Login with email/password
   const login = async (email, password) => {
     setError(null);
-    setLoading(true);
     try {
       const res = await api.post('/auth/login', { email, password });
       if (res.data.success) {
@@ -114,15 +110,12 @@ export const AuthProvider = ({ children }) => {
         err.response?.data?.message || 'Login failed. Please try again.';
       setError(message);
       throw new Error(message);
-    } finally {
-      setLoading(false);
     }
   };
 
   // Google Sign-In (popup for localhost, redirect for production)
   const googleSignIn = async (role = null) => {
     setError(null);
-    setLoading(true);
     
     try {
       if (isProduction) {
@@ -140,7 +133,6 @@ export const AuthProvider = ({ children }) => {
         const res = await api.post('/auth/google', { firebaseToken, role });
         if (res.data.success) {
           saveAuth(res.data.token, res.data.user);
-          setLoading(false);
           return res.data;
         }
       }
@@ -150,7 +142,6 @@ export const AuthProvider = ({ children }) => {
         err.message ||
         'Google Sign-In failed. Please try again.';
       setError(message);
-      setLoading(false);
       throw err;
     }
   };
@@ -163,7 +154,6 @@ export const AuthProvider = ({ children }) => {
     try {
       const result = await getRedirectResult(auth);
       if (result && result.user) {
-        setLoading(true); // Set loading while processing
         const firebaseToken = await result.user.getIdToken();
         const role = sessionStorage.getItem('pendingGoogleRole');
         
@@ -173,7 +163,6 @@ export const AuthProvider = ({ children }) => {
         const res = await api.post('/auth/google', { firebaseToken, role });
         if (res.data.success) {
           saveAuth(res.data.token, res.data.user);
-          setLoading(false);
           return res.data;
         }
       }
@@ -183,16 +172,11 @@ export const AuthProvider = ({ children }) => {
         err.message ||
         'Google Sign-In failed. Please try again.';
       setError(message);
-      setLoading(false);
       
       // Handle new user case - redirect to register
       if (err.response?.data?.isNewUser || message === 'NEW_USER') {
         sessionStorage.removeItem('pendingGoogleRole');
         sessionStorage.removeItem('googleAuthRedirect');
-        toast.error('Please sign up first! Creating your account...');
-        setTimeout(() => {
-          window.location.href = '/register';
-        }, 1500);
         return;
       }
       
