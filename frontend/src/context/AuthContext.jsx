@@ -1,11 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { signInWithPopup, signInWithRedirect, getRedirectResult, signOut } from 'firebase/auth';
+import { signInWithPopup, signOut } from 'firebase/auth';
 import { auth, googleProvider } from '../config/firebase';
 import api from '../services/api';
-import { toast } from 'sonner';
-
-// Detect if we're in production
-const isProduction = import.meta.env.PROD || window.location.hostname !== 'localhost';
 
 const AuthContext = createContext(null);
 
@@ -23,47 +19,35 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // On mount, check for existing token in localStorage and handle Google redirect
+  // On mount, check for existing token in localStorage
   useEffect(() => {
-    const initAuth = async () => {
-      // First, check for Google redirect result
+    const storedToken = localStorage.getItem('token');
+    const storedUser = localStorage.getItem('user');
+
+    if (storedToken && storedUser) {
       try {
-        await handleGoogleRedirect();
-      } catch (err) {
-        console.error('Google redirect error:', err);
+        const parsedUser = JSON.parse(storedUser);
+        setToken(storedToken);
+        setUser(parsedUser);
+
+        // Verify token is still valid
+        api
+          .get('/auth/me')
+          .then((res) => {
+            if (res.data.success) {
+              setUser(res.data.user);
+              localStorage.setItem('user', JSON.stringify(res.data.user));
+            }
+          })
+          .catch(() => {
+            // Token invalid — clear everything
+            logout();
+          });
+      } catch {
+        logout();
       }
-
-      // Then check for existing token
-      const storedToken = localStorage.getItem('token');
-      const storedUser = localStorage.getItem('user');
-
-      if (storedToken && storedUser) {
-        try {
-          const parsedUser = JSON.parse(storedUser);
-          setToken(storedToken);
-          setUser(parsedUser);
-
-          // Verify token is still valid
-          api
-            .get('/auth/me')
-            .then((res) => {
-              if (res.data.success) {
-                setUser(res.data.user);
-                localStorage.setItem('user', JSON.stringify(res.data.user));
-              }
-            })
-            .catch(() => {
-              // Token invalid — clear everything
-              logout();
-            });
-        } catch {
-          logout();
-        }
-      }
-      setLoading(false);
-    };
-
-    initAuth();
+    }
+    setLoading(false);
   }, []);
 
   // Save to localStorage whenever user/token changes
@@ -113,28 +97,18 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Google Sign-In (popup for localhost, redirect for production)
+  // Google Sign-In (always uses popup)
   const googleSignIn = async (role = null) => {
     setError(null);
     
     try {
-      if (isProduction) {
-        // Production: Use redirect to avoid COOP issues
-        if (role) {
-          sessionStorage.setItem('pendingGoogleRole', role);
-        }
-        sessionStorage.setItem('googleAuthRedirect', 'true');
-        await signInWithRedirect(auth, googleProvider);
-      } else {
-        // Localhost: Use popup for better dev experience
-        const result = await signInWithPopup(auth, googleProvider);
-        const firebaseToken = await result.user.getIdToken();
+      const result = await signInWithPopup(auth, googleProvider);
+      const firebaseToken = await result.user.getIdToken();
 
-        const res = await api.post('/auth/google', { firebaseToken, role });
-        if (res.data.success) {
-          saveAuth(res.data.token, res.data.user);
-          return res.data;
-        }
+      const res = await api.post('/auth/google', { firebaseToken, role });
+      if (res.data.success) {
+        saveAuth(res.data.token, res.data.user);
+        return res.data;
       }
     } catch (err) {
       const message =
@@ -142,44 +116,6 @@ export const AuthProvider = ({ children }) => {
         err.message ||
         'Google Sign-In failed. Please try again.';
       setError(message);
-      throw err;
-    }
-  };
-
-  // Handle Google redirect result (production only)
-  const handleGoogleRedirect = async () => {
-    // Skip on localhost since we use popup there
-    if (!isProduction) return;
-    
-    try {
-      const result = await getRedirectResult(auth);
-      if (result && result.user) {
-        const firebaseToken = await result.user.getIdToken();
-        const role = sessionStorage.getItem('pendingGoogleRole');
-        
-        sessionStorage.removeItem('pendingGoogleRole');
-        sessionStorage.removeItem('googleAuthRedirect');
-
-        const res = await api.post('/auth/google', { firebaseToken, role });
-        if (res.data.success) {
-          saveAuth(res.data.token, res.data.user);
-          return res.data;
-        }
-      }
-    } catch (err) {
-      const message =
-        err.response?.data?.message ||
-        err.message ||
-        'Google Sign-In failed. Please try again.';
-      setError(message);
-      
-      // Handle new user case - redirect to register
-      if (err.response?.data?.isNewUser || message === 'NEW_USER') {
-        sessionStorage.removeItem('pendingGoogleRole');
-        sessionStorage.removeItem('googleAuthRedirect');
-        return;
-      }
-      
       throw err;
     }
   };
@@ -230,7 +166,6 @@ export const AuthProvider = ({ children }) => {
     register,
     login,
     googleSignIn,
-    handleGoogleRedirect,
     logout,
     clearError,
     updateUser,

@@ -31,3 +31,7 @@ dist/
 build/
 dist-ssr/
 *.local
+
+# Deployment env files (contain secrets)
+RENDER_ENV.txt
+VERCEL_ENV.txt
