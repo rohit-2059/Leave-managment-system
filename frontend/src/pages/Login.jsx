@@ -12,16 +12,16 @@ const Login = () => {
   const [remember, setRemember] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { login, googleSignIn, isAuthenticated, getDashboardPath, clearError } =
+  const { login, googleSignIn, isAuthenticated, loading, getDashboardPath, clearError } =
     useAuth();
   const navigate = useNavigate();
 
-  // Redirect if already logged in
+  // Redirect if already logged in (wait for loading to complete)
   useEffect(() => {
-    if (isAuthenticated) {
+    if (!loading && isAuthenticated) {
       navigate(getDashboardPath(), { replace: true });
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, loading, navigate, getDashboardPath]);
 
   // Load remembered email
   useEffect(() => {
@@ -67,8 +67,13 @@ const Login = () => {
     try {
       // For login, role is not needed (existing users already have a role)
       const data = await googleSignIn();
-      toast.success(`Welcome back, ${data.user.name}!`);
-      navigate(getDashboardPath(data.user.role), { replace: true });
+      
+      // If data is returned (localhost popup mode), navigate immediately
+      if (data) {
+        toast.success(`Welcome back, ${data.user.name}!`);
+        navigate(getDashboardPath(data.user.role), { replace: true });
+      }
+      // If no data (production redirect mode), the page will reload and handle auth
     } catch (err) {
       // Check if it's a new user without an account
       const errorMessage = err.response?.data?.message || err.message;
@@ -84,10 +89,21 @@ const Login = () => {
       } else {
         toast.error(errorMessage);
       }
-    } finally {
       setIsSubmitting(false);
     }
   };
+
+  // Show loading screen while processing Google redirect
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mb-4"></div>
+          <p className="text-gray-600">Processing sign in...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center p-4">

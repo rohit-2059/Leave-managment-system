@@ -1,7 +1,11 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { signInWithRedirect, getRedirectResult, signOut } from 'firebase/auth';
+import { signInWithPopup, signInWithRedirect, getRedirectResult, signOut } from 'firebase/auth';
 import { auth, googleProvider } from '../config/firebase';
 import api from '../services/api';
+import { toast } from 'sonner';
+
+// Detect if we're in production
+const isProduction = import.meta.env.PROD || window.location.hostname !== 'localhost';
 
 const AuthContext = createContext(null);
 
@@ -115,50 +119,28 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Google Sign-In (using redirect method for production compatibility)
+  // Google Sign-In (popup for localhost, redirect for production)
   const googleSignIn = async (role = null) => {
     setError(null);
     setLoading(true);
+    
     try {
-      // Store role and current path in sessionStorage for after redirect
-      if (role) {
-        sessionStorage.setItem('pendingGoogleRole', role);
-      }
-      sessionStorage.setItem('googleAuthRedirect', 'true');
-      // Use redirect instead of popup to avoid COOP issues
-      await signInWithRedirect(auth, googleProvider);
-    } catch (err) {
-      const message =
-        err.message ||
-        'Google Sign-In failed. Please try again.';
-      setError(message);
-      setLoading(false);
-      throw err;
-    }
-  };
-
-  // Handle Google redirect result
-  const handleGoogleRedirect = async () => {
-    try {
-      const result = await getRedirectResult(auth);
-      if (result && result.user) {
+      if (isProduction) {
+        // Production: Use redirect to avoid COOP issues
+        if (role) {
+          sessionStorage.setItem('pendingGoogleRole', role);
+        }
+        sessionStorage.setItem('googleAuthRedirect', 'true');
+        await signInWithRedirect(auth, googleProvider);
+      } else {
+        // Localhost: Use popup for better dev experience
+        const result = await signInWithPopup(auth, googleProvider);
         const firebaseToken = await result.user.getIdToken();
-        const role = sessionStorage.getItem('pendingGoogleRole');
-        const wasRedirect = sessionStorage.getItem('googleAuthRedirect');
-        
-        sessionStorage.removeItem('pendingGoogleRole');
-        sessionStorage.removeItem('googleAuthRedirect');
 
         const res = await api.post('/auth/google', { firebaseToken, role });
         if (res.data.success) {
           saveAuth(res.data.token, res.data.user);
-          
-          // Auto-navigate after successful Google auth redirect
-          if (wasRedirect) {
-            const dashboardPath = getDashboardPath(res.data.user.role);
-            window.location.href = dashboardPath;
-          }
-          
+          setLoading(false);
           return res.data;
         }
       }
@@ -168,12 +150,49 @@ export const AuthProvider = ({ children }) => {
         err.message ||
         'Google Sign-In failed. Please try again.';
       setError(message);
+      setLoading(false);
+      throw err;
+    }
+  };
+
+  // Handle Google redirect result (production only)
+  const handleGoogleRedirect = async () => {
+    // Skip on localhost since we use popup there
+    if (!isProduction) return;
+    
+    try {
+      const result = await getRedirectResult(auth);
+      if (result && result.user) {
+        setLoading(true); // Set loading while processing
+        const firebaseToken = await result.user.getIdToken();
+        const role = sessionStorage.getItem('pendingGoogleRole');
+        
+        sessionStorage.removeItem('pendingGoogleRole');
+        sessionStorage.removeItem('googleAuthRedirect');
+
+        const res = await api.post('/auth/google', { firebaseToken, role });
+        if (res.data.success) {
+          saveAuth(res.data.token, res.data.user);
+          setLoading(false);
+          return res.data;
+        }
+      }
+    } catch (err) {
+      const message =
+        err.response?.data?.message ||
+        err.message ||
+        'Google Sign-In failed. Please try again.';
+      setError(message);
+      setLoading(false);
       
-      // Handle new user case
+      // Handle new user case - redirect to register
       if (err.response?.data?.isNewUser || message === 'NEW_USER') {
         sessionStorage.removeItem('pendingGoogleRole');
         sessionStorage.removeItem('googleAuthRedirect');
-        window.location.href = '/register';
+        toast.error('Please sign up first! Creating your account...');
+        setTimeout(() => {
+          window.location.href = '/register';
+        }, 1500);
         return;
       }
       
