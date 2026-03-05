@@ -1,4 +1,4 @@
-# Leave Management System
+# Absentra - Leave Management System 
 
 A full-stack Employee Leave Management System with role-based dashboards, real-time messaging, complaint handling, and reimbursement workflows.
 
